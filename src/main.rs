@@ -15,7 +15,15 @@ use image::EncodableLayout;
 // Huh, so mod is sorta like #include...
 mod common;
 mod shader;
-mod macros;
+#[macro_use]
+
+/// Macro to get c strings from literals without runtime overhead
+/// Literal must not contain any interior nul bytes!
+macro_rules! c_str {
+    ($literal:expr) => {
+        CStr::from_bytes_with_nul_unchecked(concat!($literal, "\0").as_bytes())
+    }
+}
 
 use std::sync::mpsc::Receiver;
 use std::ptr;
@@ -74,48 +82,49 @@ fn main() {
         );
 
         let vertices: [f32; 180] = [
-             -0.5, -0.5, -0.5,  0.0, 1.0,
-              0.5, -0.5, -0.5,  0.0, 1.0,
-              0.5,  0.5, -0.5,  0.0, 1.0,
-              0.5,  0.5, -0.5,  0.0, 1.0,
+             -0.5, -0.5, -0.5,  0.0, 0.0,
+              0.5, -0.5, -0.5,  1.0, 0.0,
+              0.5,  0.5, -0.5,  1.0, 1.0,
+              0.5,  0.5, -0.5,  1.0, 1.0,
              -0.5,  0.5, -0.5,  0.0, 1.0,
+             -0.5, -0.5, -0.5,  0.0, 0.0,
+
+             -0.5, -0.5,  0.5,  0.0, 0.0,
+              0.5, -0.5,  0.5,  1.0, 0.0,
+              0.5,  0.5,  0.5,  1.0, 1.0,
+              0.5,  0.5,  0.5,  1.0, 1.0,
+             -0.5,  0.5,  0.5,  0.0, 1.0,
+             -0.5, -0.5,  0.5,  0.0, 0.0,
+
+             -0.5,  0.5,  0.5,  1.0, 0.0,
+             -0.5,  0.5, -0.5,  1.0, 1.0,
+             -0.5, -0.5, -0.5,  0.0, 1.0,
+             -0.5, -0.5, -0.5,  0.0, 1.0,
+             -0.5, -0.5,  0.5,  0.0, 0.0,
+             -0.5,  0.5,  0.5,  1.0, 0.0,
+
+              0.5,  0.5,  0.5,  1.0, 0.0,
+              0.5,  0.5, -0.5,  1.0, 1.0,
+              0.5, -0.5, -0.5,  0.0, 1.0,
+              0.5, -0.5, -0.5,  0.0, 1.0,
+              0.5, -0.5,  0.5,  0.0, 0.0,
+              0.5,  0.5,  0.5,  1.0, 0.0,
+
+             -0.5, -0.5, -0.5,  0.0, 1.0,
+              0.5, -0.5, -0.5,  1.0, 1.0,
+              0.5, -0.5,  0.5,  1.0, 0.0,
+              0.5, -0.5,  0.5,  1.0, 0.0,
+             -0.5, -0.5,  0.5,  0.0, 0.0,
              -0.5, -0.5, -0.5,  0.0, 1.0,
 
-             -0.5, -0.5,  0.5,  0.0, 1.0,
-              0.5, -0.5,  0.5,  0.0, 1.0,
-              0.5,  0.5,  0.5,  0.0, 1.0,
-              0.5,  0.5,  0.5,  0.0, 1.0,
-             -0.5,  0.5,  0.5,  0.0, 1.0,
-             -0.5, -0.5,  0.5,  0.0, 1.0,
-
-             -0.5,  0.5,  0.5,  0.0, 1.0,
              -0.5,  0.5, -0.5,  0.0, 1.0,
-             -0.5, -0.5, -0.5,  0.0, 1.0,
-             -0.5, -0.5, -0.5,  0.0, 1.0,
-             -0.5, -0.5,  0.5,  0.0, 1.0,
-             -0.5,  0.5,  0.5,  0.0, 1.0,
-
-              0.5,  0.5,  0.5,  0.0, 1.0,
-              0.5,  0.5, -0.5,  0.0, 1.0,
-              0.5, -0.5, -0.5,  0.0, 1.0,
-              0.5, -0.5, -0.5,  0.0, 1.0,
-              0.5, -0.5,  0.5,  0.0, 1.0,
-              0.5,  0.5,  0.5,  0.0, 1.0,
-
-             -0.5, -0.5, -0.5,  0.0, 1.0,
-              0.5, -0.5, -0.5,  0.0, 1.0,
-              0.5, -0.5,  0.5,  0.0, 1.0,
-              0.5, -0.5,  0.5,  0.0, 1.0,
-             -0.5, -0.5,  0.5,  0.0, 1.0,
-             -0.5, -0.5, -0.5,  0.0, 1.0,
-
-             -0.5,  0.5, -0.5,  0.0, 1.0,
-              0.5,  0.5, -0.5,  0.0, 1.0,
-              0.5,  0.5,  0.5,  0.0, 1.0,
-              0.5,  0.5,  0.5,  0.0, 1.0,
-             -0.5,  0.5,  0.5,  0.0, 1.0,
+              0.5,  0.5, -0.5,  1.0, 1.0,
+              0.5,  0.5,  0.5,  1.0, 0.0,
+              0.5,  0.5,  0.5,  1.0, 0.0,
+             -0.5,  0.5,  0.5,  0.0, 0.0,
              -0.5,  0.5, -0.5,  0.0, 1.0
         ];
+
 
         gl::GenVertexArrays(1, &mut vao);
         gl::GenBuffers(1, &mut vbo);
@@ -136,7 +145,7 @@ fn main() {
         gl::VertexAttribPointer(1, 2, gl::FLOAT, gl::FALSE, stride, (3 * mem::size_of::<GLfloat>()) as *const c_void);
         gl::EnableVertexAttribArray(1);
         
-        /*
+        
         // texture 1
         gl::GenTextures(1, &mut texture1);
         gl::BindTexture(gl::TEXTURE_2D, texture1);
@@ -188,7 +197,7 @@ fn main() {
         ourShader.useProgram();
         ourShader.setInt(c_str!("texture1"), 0);
         ourShader.setInt(c_str!("texture2"), 1);
-        */
+        
     };
     
     event_loop.run(move |event, _, control_flow| {
@@ -207,10 +216,10 @@ fn main() {
                     gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
         
                     
-                    //gl::ActiveTexture(gl::TEXTURE0);
-                    //gl::BindTexture(gl::TEXTURE_2D, texture1);
-                    //gl::ActiveTexture(gl::TEXTURE1);
-                    //gl::BindTexture(gl::TEXTURE_2D, texture2);
+                    gl::ActiveTexture(gl::TEXTURE0);
+                    gl::BindTexture(gl::TEXTURE_2D, texture1);
+                    gl::ActiveTexture(gl::TEXTURE1);
+                    gl::BindTexture(gl::TEXTURE_2D, texture2);
         
                     ourShader.useProgram();
         
